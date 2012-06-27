@@ -1,0 +1,144 @@
+Annedroid - IRC "client" for Android, taking inspiration from Irssi
+-------------------------------------------------------------------
+
+SERVER SIDE,
+Annedroid is basically a HTTP interface to IRC. The server (written
+in Python) connects to IRC, and relays chat back to your phone via
+push notifications. This means you don't have to run a persistent
+connection to the chatroom(s) on your phone. The server keeps track
+of all your conversations, meaning nothing is dropped.
+
+NEAT IDEAS:
+- Push notifications of mentions, privmsgs
+- Actual chatroom messages only downloaded when app is in foreground
+
+SERVER SPEC:
+- Python IRC module
+- Be able to handle multiple nicks on multiple servers?
+- Must be able to handle multiple channels,
+	(each channel's conversation accessed through a seperate URL,
+	also 'master' channel where they're all combined)
+- Ignore lists
+- Mentions
+- Highlights
+- Alerts on specific events
+	(e.g. Person joins/leaves channel/channel topic changed)
+- Actions occurring to your own nick (kicked/banned/opped/disconnected)
+- All above are timestamped, ability to receive all stored in memory
+	or only the items received after a specific time
+- HTTPS?
+- User auth; client must provide hash of (password+current time) in order
+	to read messages/perform actions
+- JSON output
+- Python plugins; hooks for events
+
+CLIENT/SERVER SYNC:
+- Client POSTs current time whenever receiving/sending data; server
+subtracts this from its own current time to get a delta, this delta
+added to the other "last checked for data at" timestamp supplied by the
+client.
+
+http://server/irc.freenode.net/channel/#42:
+{"ctime":<int>, "token":<passwd+ctime>, "last_checked":<int>}
+
+delta = [own current time]-[ctime]
+server queries message db for messages 
+
+API URLS:
+/register [provide POST data w/ 
+/<user>/connect [server address in POST data]
+/<user>/disconnect [^ ditto]
+/<user>/master/highlights
+/<user>/master/highlighted [for fetching highlights]
+/<user>/master/ignore
+/<user>/master/blocked
+/<user>/master/servers [list servers and their connection status]
+/<user>/master/events [global events; e.g. "server disconnected"/"file transfer failed"]
+/<user>/<irc server>/channel/<channel>
+/<user>/<irc server>/channel/<channel>/nicks
+/<user>/<irc server>/channel/<channel>/topic
+/<user>/<irc server>/channel/<channel>/highlights
+/<user>/<irc server>/channel/<channel>/ignore
+/<user>/<irc server>/channel/<channel>/blocked
+/<user>/<irc server>/user/<nick>
+/<user>/<irc server>/user/<nick>/whois|whowas
+/<user>/<irc server>/user/<nick>/ctcp
+/<user>/<irc server>/user/<nick>/sendfile [gonna be experimental]
+/<user>/<irc server>/all [shortcut for getting all messages, readonly]
+/<user>/<irc server>/master
+/<user>/<irc server>/master/highlights
+/<user>/<irc server>/master/ignore
+/<user>/<irc server>/master/blocked
+
+POST DATA (things in square brackets are optional/only needed for some requests):
+{
+	"ctime": <current client timestamp>,
+	"token":<password + ctime hash>,
+	["last_checked": <timestamp of last http request>,]
+	["data": <data to send to IRC server, if any - e.g. for /msg or /privmsg or /me>]
+}
+
+EXAMPLE LIST OF HIGHLIGHTS (from /master/highlighted):
+{
+	"server_time": <time>, //current server time
+	"highlights":[
+		{"server":"irc.freenode.net", "channel": "#42",
+		"timestamp": <time>, "message": "Hello, Erinaceous"},
+		...
+	]
+}
+
+SERVER STORAGE:
+- Persistence? Save everything to a database, maybe? SQLite? See if can keep most recent
+stuff in memory buffer and older events on disk
+
+SERVER DATA STRUCTURE:
+
+user["name"] -> {
+	password -> "plaintext password"
+	master	-> {
+		highlights -> [global reg'exes to highlight],
+		ignore -> [global reg'exes to ignore],
+		blocked -> [global nicknames to ignore],
+		events -> [global events],
+		server -> {
+			highlights, ignore, blocked,
+			channels -> {
+				channel -> {
+					highlights, ignore, blocked,
+					messages -> {
+						message -> {timestamp, nick, message}
+					},
+					highlighted -> {
+						message -> {timestamp, nick, message}
+					},
+					received_files -> {
+						file -> {timestamp, from_nick, data}
+					}
+				},
+				channel -> ...
+			}
+		},
+		server -> ...
+	}
+},
+user["name"] -> ...
+
+CLIENT SPEC:
+- JSON parsing
+- Ability to do HTTPS and POST data
+- Settings, current state, stored in SQLite db?
+	(Could just do what I used to do & [un]serialize from file)
+- Background service for receiving alerts, runs persistently
+	^ Controls Notification sending
+	- Ability to go to a specific chatroom from notification
+	(and scroll to right place in conversation?)
+- Foreground app for reading actual chatroom stuff
+	^ Tabs for different chatrooms; only download data for the chatroom
+	you're currently looking at.
+	- Ability to join new chatroom by clicking '+' button next to the tabs
+	- Ability to configure ignore lists, highlights lists
+	(and what sorts of notifications you get)
+	- VIEW IMAGES INLINE! (Have option to)
+	- Clickable URLs, load title of the page, follow redirects
+	- Smileys (ugh, disabled by default)
