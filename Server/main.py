@@ -3,7 +3,7 @@
 @author: Owain Jones [odj@aber.ac.uk]
 '''
 
-import data, jsonpickle
+import data, jsonpickle, json
 from logger import Logger
 from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
@@ -23,6 +23,9 @@ connections = {}
 def to_json(object):
     #return json.dumps(object.__dict__)
     return str(jsonpickle.encode(object))
+
+def to_json_simple(object):
+    return json.dumps(object.__dict__)
 
 def sync_time(client_time,timestamp):
     '''Synchronize a timestamp between client & server'''
@@ -136,13 +139,37 @@ class IRCServer(Resource):
             channel = request.args['channel'][0]
             connections[user+'_'+server].irc.join(channel)
             return '{"message": "s:JOINED"}'
+        
+    class Message(Page):
+        isLeaf = True
+        def run(self, request):
+            user = request.args['user'][0]
+            server = request.args['server'][0]
+            channel = request.args['channel'][0]
+            message = request.args['message'][0]
+            connections[user+'_'+server].irc.msg(channel, message)
+            return '{"message": "s:SENT"}'
     
     def __init__(self):
         Resource.__init__(self)
         self.putChild('connect',self.Connect())
         self.putChild('disconnect',self.Disconnect())
         self.putChild('join',self.Join())
+        self.putChild('message',self.Message())
     
+class Channel(Page):
+    def run(self, request):
+        user = request.args['user'][0]
+        server = request.args['server'][0]
+        channel = request.args['channel'][0]
+        messages = database.user[user].master.server[server].channels[channel].messages
+        out = '{"messages": [\n'
+        for message in messages:
+            out += to_json_simple(message)+',\n'
+        out = out[:-2]
+        out += '\n]}'
+        return out
+
 class SaveDB(Page):
     isLeaf = True
     needsAdmin = True
@@ -234,6 +261,7 @@ if __name__ == '__main__':
     root.putChild('saveDB',SaveDB())
     root.putChild('info',Info())
     root.putChild('server',IRCServer())
+    root.putChild('channel',Channel())
     registration = Registration()
     root.putChild('register', registration)
     
