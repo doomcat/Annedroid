@@ -49,27 +49,28 @@ API URLS:
 /server/connect [server address in POST data]
 /server/disconnect [^ ditto]
 /server/join
+/server/message
+/server/highlights
+/server/highlighted [for fetching highlights]
+/server/ignore
+/server/blocked
+/master
 /master/highlights
-/master/highlighted [for fetching highlights]
 /master/ignore
 /master/blocked
 /master/servers [list servers and their connection status]
 /master/events [global events; e.g. "server disconnected"/"file transfer failed"]
-/<irc server>/channel/<channel>
-/<irc server>/channel/<channel>/nicks
-/<irc server>/channel/<channel>/topic
-/<irc server>/channel/<channel>/highlights
-/<irc server>/channel/<channel>/ignore
-/<irc server>/channel/<channel>/blocked
-/<irc server>/user/<nick>
-/<irc server>/user/<nick>/whois|whowas
-/<irc server>/user/<nick>/ctcp
-/<irc server>/user/<nick>/sendfile [gonna be experimental]
-/<irc server>/all [shortcut for getting all messages, readonly]
-/<irc server>/master
-/<irc server>/master/highlights
-/<irc server>/master/ignore
-/<irc server>/master/blocked
+/channel
+/channel/nicks
+/channel/topic
+/channel/highlights
+/channel/ignore
+/channel/blocked
+/user
+/user/whois|whowas
+/user/ctcp
+/user/sendfile [gonna be experimental]
+/all [shortcut for getting all messages, readonly]
 
 POST DATA (things in square brackets are optional/only needed for some requests):
 {
