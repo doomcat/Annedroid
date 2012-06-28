@@ -1,0 +1,21 @@
+€cdata
+Data
+q)q}qUuserq}qUowainqcdata
+User
+q)q}q	(Uadminq
+ˆUpasswordqUhunter2qUmasterqcdata
+Master
+q)q}q(Ureceived_filesq]qU
+highlightsqc__builtin__
+set
+q]…RqUserverq}qUirc.aberwiki.orgqcdata
+Server
+q)q}q(Uignoreqh]…RqU
+highlightsqh]…RqUnickq U_Erinaceousq!Uchannelsq"}q#U
+#annedroidq$cdata
+Channel
+q%)q&}q'(hh]…Rq(hh]…Rq)Uhighlightedq*]q+cdata
+Message
+q,)q-}q.(U	timestampq/GAÓûŠ	™šUmessageq0U_Erinaceous: you're a wizardq1h U#Erinaceous!Erinaceous@94.76.222.183q2Uchannelq3U
+#annedroidq4Userverq5hubaUmessagesq6]q7(h,)q8}q9(h/GAÓû†ªĞåh0Utestq:h U#Erinaceous!Erinaceous@94.76.222.183q;h3U
+#annedroidq<h5hubh-eUblockedq=h]…Rq>ubsh=h]…Rq?ubsUignoreq@h]…RqAUeventsqB]qCUblockedqDh]…RqEububssb.

@@ -45,30 +45,31 @@ delta = [own current time]-[ctime]
 server queries message db for messages 
 
 API URLS:
-/register [provide POST data w/ 
-/<user>/connect [server address in POST data]
-/<user>/disconnect [^ ditto]
-/<user>/master/highlights
-/<user>/master/highlighted [for fetching highlights]
-/<user>/master/ignore
-/<user>/master/blocked
-/<user>/master/servers [list servers and their connection status]
-/<user>/master/events [global events; e.g. "server disconnected"/"file transfer failed"]
-/<user>/<irc server>/channel/<channel>
-/<user>/<irc server>/channel/<channel>/nicks
-/<user>/<irc server>/channel/<channel>/topic
-/<user>/<irc server>/channel/<channel>/highlights
-/<user>/<irc server>/channel/<channel>/ignore
-/<user>/<irc server>/channel/<channel>/blocked
-/<user>/<irc server>/user/<nick>
-/<user>/<irc server>/user/<nick>/whois|whowas
-/<user>/<irc server>/user/<nick>/ctcp
-/<user>/<irc server>/user/<nick>/sendfile [gonna be experimental]
-/<user>/<irc server>/all [shortcut for getting all messages, readonly]
-/<user>/<irc server>/master
-/<user>/<irc server>/master/highlights
-/<user>/<irc server>/master/ignore
-/<user>/<irc server>/master/blocked
+/register [provide POST data w/ username & pass]
+/server/connect [server address in POST data]
+/server/disconnect [^ ditto]
+/server/join
+/master/highlights
+/master/highlighted [for fetching highlights]
+/master/ignore
+/master/blocked
+/master/servers [list servers and their connection status]
+/master/events [global events; e.g. "server disconnected"/"file transfer failed"]
+/<irc server>/channel/<channel>
+/<irc server>/channel/<channel>/nicks
+/<irc server>/channel/<channel>/topic
+/<irc server>/channel/<channel>/highlights
+/<irc server>/channel/<channel>/ignore
+/<irc server>/channel/<channel>/blocked
+/<irc server>/user/<nick>
+/<irc server>/user/<nick>/whois|whowas
+/<irc server>/user/<nick>/ctcp
+/<irc server>/user/<nick>/sendfile [gonna be experimental]
+/<irc server>/all [shortcut for getting all messages, readonly]
+/<irc server>/master
+/<irc server>/master/highlights
+/<irc server>/master/ignore
+/<irc server>/master/blocked
 
 POST DATA (things in square brackets are optional/only needed for some requests):
 {
@@ -78,7 +79,7 @@ POST DATA (things in square brackets are optional/only needed for some requests)
 	["data": <data to send to IRC server, if any - e.g. for /msg or /privmsg or /me>]
 }
 
-EXAMPLE LIST OF HIGHLIGHTS (from /master/highlighted):
+EXAMPLE LIST OF HIGHLIGHTS (from /master/highlighted) (JSON output):
 {
 	"server_time": <time>, //current server time
 	"highlights":[
