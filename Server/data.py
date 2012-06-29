@@ -35,8 +35,10 @@ class Data(object):
         '''
         f = open('server.pkl', 'wb')
         pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
-        
+        self.changed = False
+
     def __init__(self):
+        self.changed = True
         self.user = {}
     
 class User(object):
@@ -68,7 +70,7 @@ class Channel(object):
         self.ignore = set()
         self.blocked = set()
         self.messages = []
-        self.highlighted = []
+        self.buffer = []
     
 class Message(object):
     def __init__(self,server,channel,nick,message):
@@ -77,6 +79,11 @@ class Message(object):
         self.channel = channel
         self.nick = nick
         self.message = message
+        
+class Event(Message):
+    def __init__(self,server,channel,nick,message,event):
+        Message.__init__(self, server, channel, nick, message)
+        self.event = event
         
 class File(Message):
     def __init__(self,server,channel,nick,message):

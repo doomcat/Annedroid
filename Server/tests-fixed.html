@@ -51,6 +51,17 @@
 		</form></div>
 		<hr />
 		
+		<div><h1>Leave Channel</h1>
+			<form method="POST" action="http://127.0.0.1:8080/server/leave">
+			<input type="hidden" name="user" value="owain" />
+			<input type="hidden" name="ctime" value="1340895510" />
+			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
+			<p>server: <input type="text" name="server" /></p>
+			<p>channel: <input type="text" name="channel" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
 		<div><h1>Send Message</h1>
 			<form method="POST" action="http://127.0.0.1:8080/server/message">
 			<input type="hidden" name="user" value="owain" />
@@ -70,6 +81,36 @@
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
 			<p>server: <input type="text" name="server" /></p>
 			<p>channel: <input type="text" name="channel" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Get Events</h1>
+			<form method="POST" action="http://127.0.0.1:8080/events">
+			<input type="hidden" name="user" value="owain" />
+			<input type="hidden" name="ctime" value="1340895510" />
+			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Wait For Message</h1>
+			<form method="POST" action="http://127.0.0.1:8080/channel/new">
+			<input type="hidden" name="user" value="owain" />
+			<input type="hidden" name="ctime" value="1340895510" />
+			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
+			<p>server: <input type="text" name="server" /></p>
+			<p>channel: <input type="text" name="channel" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Eval Code</h1>
+			<form method="POST" action="http://127.0.0.1:8080/eval">
+			<input type="hidden" name="user" value="owain" />
+			<input type="hidden" name="ctime" value="1340895510" />
+			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
+			<p>code: <input type="text" name="message" /></p>
 			<p><input type="submit" /></p>
 		</form></div>
 		<hr />
