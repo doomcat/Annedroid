@@ -20,6 +20,10 @@ database = None
 log = Logger()
 connections = {}
 
+def generate_cookie(user):
+    t = time()
+    return str(sha256(t).hexdigest())
+    
 def add_user_to_channel(dbuser,server,channel,user):
     user = user.split('!')[0]
     try:
@@ -123,6 +127,21 @@ class Registration(Page):
     <p><input type="submit" value="Register!" /></p>
 </form></body></html>
 '''
+
+class Auth(Page):
+    needsAuth = False
+    def run(self, request):
+        if 'username' in request.args.keys()\
+        and 'password' in request.args.keys():
+            username = request.args['username'][0]
+            password = request.args['password'][0]
+        else:
+            return '{"message": "s:BAD_AUTH"}'
+
+        if username in database.user.keys():
+            cookie = generate_cookie(username)
+            database.user[username].cookie = cookie
+            return '{"cookie": "%s"}' % (cookie,)
 
 class IRCServer(Resource):
     class Nick(Page):
@@ -620,6 +639,7 @@ if __name__ == '__main__':
     root.putChild('channel',Channel())
     root.putChild('events',Events())
     root.putChild('register',Registration())
+    root.putChild('auth',Auth())
     root.putChild('highlights',Highlights())
     root.putChild('ignore',Ignore())
     root.putChild('blocked',Blocked())
