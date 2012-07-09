@@ -12,6 +12,7 @@ from twisted.web.resource import Resource
 from twisted.internet.task import LoopingCall, deferLater
 from time import time, sleep
 from hashlib import sha256
+from itertools import izip, cycle
 
 import config
 
@@ -20,8 +21,11 @@ database = None
 log = Logger()
 connections = {}
 
+def xor_crypt_string(data, key):
+    return ''.join(chr(ord(x) ^ ord(y)) for (x,y) in izip(data, cycle(key)))
+
 def generate_cookie(user):
-    t = time()
+    t = str(time())
     return str(sha256(t).hexdigest())
     
 def add_user_to_channel(dbuser,server,channel,user):
@@ -45,7 +49,11 @@ def to_json(object):
     return str(jsonpickle.encode(object))
 
 def to_json_simple(object):
-    return json.dumps(object.__dict__)
+    try:
+        return json.dumps(object.__dict__)
+    except Exception as e:
+        log.l(e)
+        return '{}'
 
 def sync_time(client_time,timestamp):
     '''Synchronize a timestamp between client & server'''
@@ -54,10 +62,14 @@ def sync_time(client_time,timestamp):
 
 def parse_args(request):
     out = {}
-    for arg in ['user','server','channel','message','last_checked','nick']:
-        try: out[arg] = request.args[arg][0]
-        except KeyError: pass
+    #for arg in ['user','server','channel','message','last_checked','nick','wait']:
+    #    try: out[arg] = request.args[arg][0]
+    #    except KeyError: pass
+    #return out
+    for arg in request.args:
+    	out[arg] = request.args[arg][0]
     return out
+    #return {arg, request.args[0] for arg in request.args}
 
 class Page(Resource):
     '''Default Page class: handles checking for authentication etc., making it
@@ -127,6 +139,20 @@ class Registration(Page):
     <p><input type="submit" value="Register!" /></p>
 </form></body></html>
 '''
+
+class Registration42(Registration):
+    def run(self, request):
+        Registration.run(self, request)
+        request.args['server'] = ['irc.aberwiki.org']
+	request.args['user'] = request.args['username']
+	request.args['ctime'] = ['lol_buttes']
+	request.args['token'] = [str(sha256('lol_buttes'+request.args['password'][0]).hexdigest())]
+	request.args['channel'] = ["#42"]
+	request.a = parse_args(request)
+	i = IRCServer.Connect()
+	i.run(request)
+	connections[request.args['user'][0]+'_'+'irc.aberwiki.org'].irc.join('#42')
+	return "Registered, connected and joined #42. Go back to http://annedroid.slashingedge.co.uk/#42"
 
 class Auth(Page):
     needsAuth = False
@@ -262,32 +288,45 @@ class KeepAlive(Page):
         return database.user[a['user']].master.server[a['server']]\
         .channels[a['channel']].messages
     
-    def messages_get(self, request):
+    def messages_get(self, request, limit=0):
         a = request.a
         messages = self.message_provider(request)
             
         if 'last_checked' in a.keys():
             if a['last_checked'] is not '':
                 t = float(a['last_checked'])
-                return [m for m in messages if (m.timestamp > t)]
+                out = [m for m in messages if (m.timestamp > t)]
+                if limit != 0 and len(out) > limit:
+                    return out[-limit:]
+                return out
             
         return messages
             
     def run_loop(self, request):
-        messages = self.messages_get(request)
-        
+        limit = 0
+        if 'limit' in request.a.keys():
+            limit = int(request.a['limit'])        
+
+        messages = self.messages_get(request,limit)
+
         if len(messages) == 0:
             deferLater(reactor, 1, self.run_loop, request)
             return NOT_DONE_YET
         else:
             request.write(self.messages_str(messages))
             request.finish()
-            return
+            request.notifyFinish()
+            #return
             
     def run(self, request):
-        messages = self.messages_get(request)
+        limit = 0
+        if 'limit' in request.a.keys():
+            limit = int(request.a['limit'])        
             
-        if len(messages) == 0:
+        messages = self.messages_get(request,limit)
+
+        if len(messages) == 0 and 'wait' in request.a.keys()\
+        and request.a['wait'] == 'true':
             deferLater(reactor, 1, self.run_loop, request)
             return NOT_DONE_YET
         else:
@@ -449,6 +488,7 @@ class IRCConnection(irc.IRCClient):
         log.l("Left %s" % (channel,))
     
     def privmsg(self, user, channel, msg):
+	msg = msg.decode('utf-8')
         addToEvents = False
         c = channel
         if database.user[self.user].master.server[self.server].nick\
@@ -501,11 +541,12 @@ class IRCConnection(irc.IRCClient):
                 addToEvents = True
                 eType = "HIGHLIGHT"
             
-        chan.messages.append(message)
-        
         if addToEvents is True:
             event = data.Event(self.server, c, user, message.message, eType)
             highlighted.append(event)
+	    chan.messages.append(event)
+        else:
+            chan.messages.append(message)
             
     def action(self, user, channel, data):
         self.privmsg(user, channel, "/me "+data)
@@ -610,13 +651,16 @@ def garbage_collect():
                 c = database.user[user].master.server[server].channels[channel]
                 l = len(c.messages)
                 if l > int(config.CHAT_BUFFER):
-                    c.messages = c.messages[:-int(config.CHAT_BUFFER)]
-                    objects += (l-int(config.CHAT_BUFFER))
+                    database.user[user].master.server[server].channels[channel]\
+			.messages = database.user[user].master.server[server].\
+			channels[channel].messages[-int(config.CHAT_BUFFER):]
+                    objects += (l-len(c.messages))
         m = database.user[user].master.events
         l = len(m)
-        if l > int(config.CHAT_BUFFER/10):
-            m = m[:-int(config.CHAT_BUFFER/10)]
-            objects += (l-int(config.CHAT_BUFFER/10))
+        if l > int(config.CHAT_BUFFER):
+            database.user[user].master.events\
+             = database.user[user].master.events[-int(config.CHAT_BUFFER):]
+            objects += (l-len(m))
     log.l("Garbage Collection run: %s objects cleared." % (objects,))
 
 if __name__ == '__main__':
@@ -643,7 +687,7 @@ if __name__ == '__main__':
     root.putChild('highlights',Highlights())
     root.putChild('ignore',Ignore())
     root.putChild('blocked',Blocked())
-    
+    root.putChild('register42',Registration42())    
     site = Site(root)
 
     restore()
