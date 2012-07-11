@@ -1,0 +1,14 @@
+ANNEDROID/SERVER API - Owain Jones <odj@aber.ac.uk>, revision 1
+
+ 1. Intro
+--------------------------------------------------------------------------------
+'Annedroid's name is inspired by the irc client Irssi. The python-written irc
+client/http server was originally simply meant to be part of my Android IRC
+client, but I decided to develop it further, for other people's use, but kept
+the name.
+You can find the actual Android client for it on the Play Store.
+
+ 2. The Server
+--------------------------------------------------------------------------------
+Annedroid/Server has the following features:
+ * User accounts: apply 

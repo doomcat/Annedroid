@@ -1,0 +1,63 @@
+<html>
+	<body>
+		
+		<div><h1>Register</h1>
+			<form method="POST" action="http://127.0.0.1:8080/register">
+			<p>username: <input type="text" name="username" /></p>
+			<p>password: <input type="password" name="password" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Save DB</h1>
+			<form method="POST" action="http://127.0.0.1:8080/saveDB">
+			<p>user: <input type="text" name="user" /></p>
+			<p>ctime: <input type="text" name="ctime" /></p>
+			<p>token: <input type="text" name="token" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Get Info</h1>
+			<form method="POST" action="http://127.0.0.1:8080/info">
+			<p>user: <input type="text" name="user" /></p>
+			<p>ctime: <input type="text" name="ctime" /></p>
+			<p>token: <input type="text" name="token" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Connect to Server</h1>
+			<form method="POST" action="http://127.0.0.1:8080/server/connect">
+			<p>user: <input type="text" name="user" /></p>
+			<p>ctime: <input type="text" name="ctime" /></p>
+			<p>token: <input type="text" name="token" /></p>
+			<p>server: <input type="text" name="server" /></p>
+			<p>nick: <input type="text" name="nick" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Disconnect from Server</h1>
+			<form method="POST" action="http://127.0.0.1:8080/server/disconnect">
+			<p>user: <input type="text" name="user" /></p>
+			<p>ctime: <input type="text" name="ctime" /></p>
+			<p>token: <input type="text" name="token" /></p>
+			<p>server: <input type="text" name="server" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+		<div><h1>Join Channel</h1>
+			<form method="POST" action="http://127.0.0.1:8080/server/join">
+			<p>user: <input type="text" name="user" /></p>
+			<p>ctime: <input type="text" name="ctime" /></p>
+			<p>token: <input type="text" name="token" /></p>
+			<p>server: <input type="text" name="server" /></p>
+			<p>channel: <input type="text" name="channel" /></p>
+			<p><input type="submit" /></p>
+		</form></div>
+		<hr />
+		
+	</body>
+</html>

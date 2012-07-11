@@ -1,0 +1,223 @@
+ANNEDROID/SERVER API - Owain Jones <odj@aber.ac.uk>, revision 1
+
+ 1. Intro
+--------------------------------------------------------------------------------
+'Annedroid's name is inspired by the irc client Irssi. The python-written irc
+client/http server was originally simply meant to be part of my Android IRC
+client, but I decided to develop it further, for other people's use, but kept
+the name.
+You can find the actual Android client for it on the Play Store.
+The server code is at https://github.com/doomcat/Annedroid/Server/
+
+A public Annedroid server is running at:
+	http://annedroid.slashingedge.co.uk/api/
+feel free to use it :) but be aware that it's my working copy and is changed,
+updated and rebooted a lot.
+
+ 2. The Server
+--------------------------------------------------------------------------------
+Annedroid/Server has the following features:
+ * User accounts: all commands and requests to/from the server must be
+   authenticated. Users can register with passwords.
+
+ * Admin system: allows some users to do more things. Currently, admins can:
+    - Force the server to save the database (force write to disk)
+
+ * Multiple IRC servers per user: Connect to as many different IRC servers as
+   you want. NB: currently only one connection PER server is supported -
+   multiple users can be connected to the same one, but they can't have
+   multiple nicks on the same API account.
+
+ * Real-time messages/events receiving: HTTP connections to the server stay
+   open, waiting until new data is ready then close after sending it, allowing
+   for a mixture of polling and keep-alive connections. This means applications
+   using the API get realtime feedback of IRC channels and events on IRC
+   servers.
+
+ * Support for, per-user and per-channel, highlights, ignores and blocked user
+   lists.
+
+ * Persistent data: chatroom messages and events are logged. By default, ~1000
+   messages are kept per-channel for each user.
+
+Features that are coming "soon":
+ * Better encryption/authentication methods. The one I'm using at the moment is
+   a bit stupid really.
+
+ * Send/receive files from other IRC clients: upload/download via HTTP.
+
+ * More persistence options: save to SQL database or something like MongoDB.
+
+
+ 3. The API
+--------------------------------------------------------------------------------
+The API is fairly simple. All input to the server is in HTTP POST requests,
+all output is in JSON form. Functionality is divided into different URLs:
+
+/register	- register a new (Annedroid) user.
+		  inputs:
+			username
+			password
+		  outputs:
+		        {"message": "s:REGISTER_SUCCESS"} if account created
+			{"message": "s:ALREADY_REGISTERED"} if that username
+                                                            already exists.
+
+ALL OTHER REQUESTS HAVE TO BE AUTHENTICATED. /register is THE ONLY ONE which
+doesn't require a username, hash and token.
+When making a request via the following URLs, please provide this information
+in the POST data:
+ - user: the annedroid server username for this request
+ - ctime: hash for the password, current time is a good hash
+ - token: sha256 hash of ctime+password
+
+/saveDB		- force Annedroid to save the database instantly.
+		  additional inputs: none.
+		  outputs:
+			{"message": "s:DATABASE_SAVED"} if successful.
+
+/server/connect	- connect to an IRC server.
+                  additional inputs:
+			- server: the hostname/ip of the irc server/network
+			- nick: your desired nickname for this server
+		  outputs:
+			{"message": "s:CONNECTING"} if request was successful.
+
+		  example input:
+			user=owain
+			ctime=1341391316
+			token=fbac67a0a14b17da3da8527eea5351cb97c85ded1b5752a2a1e156d52f3b34d8	(ctime+password, password is 'password')
+			server=irc.aberwiki.org
+
+/server/disconnect - disconnect from an IRC server.
+		  additional inputs: same as /server/connect.
+		  outputs:
+			{"message": "s:DISCONNECTED"} when successful.
+
+/server/nick	- change your nickname on a particular IRC server.
+		  additional inputs:
+			- server: the hostname/ip of the irc server/network.
+			- nick: your desired nickname.
+
+/server/join	- join a channel on a particular IRC server.
+		  additional inputs:
+			- server
+			- channel
+
+		  example input:
+			user=owain
+			ctime=1341391316
+			token=fbac67a0a14b17da3da8527eea5351cb97c85ded1b5752a2a1e156d52f3b34d8	(ctime+password, password is 'password')
+			server=irc.aberwiki.org
+			channel=#42
+
+/server/leave	- leave a channel on a server.
+		  additional inputs: same as above.
+
+/channel/users	- get the list of users for a channel*.
+		  additional inputs:
+			- server
+			- channel
+		  output:
+			{"list": [
+			"IRCNick1",
+			"IRCNick2",
+			"IRCNick3",
+			...
+			]}
+
+/highlights	- get/set the words to highlight across all your conversations
+		  on all the irc servers you're connected to.
+		  additional inputs:
+			message: a space-delimited list of words to highlight.
+				 for example:
+				 message="ducks geese tyrannosaurus" would
+				 make Annedroid/Server log an event whenever
+				 someone said any of those 3 words in any of the
+				 channels you're in.
+			
+			message can be left blank to simply output the list of
+			words as a JSON array of strings.
+			
+			message=" " (a single space) can be used to clear the
+			highlights list completely, should you no longer want
+			to highlight anything.
+
+		  example input:
+			user=owain
+			ctime=1341391316
+			token=fbac67a0a14b17da3da8527eea5351cb97c85ded1b5752a2a1e156d52f3b34d8	(ctime+password, password is 'password')
+			message=ducks geese tyrannosaurus
+
+/ignore		- same as /highlights, but for words you want to ignore -
+		  messages with these words will not be logged.
+
+/blocked	- same as above two, but for nicknames you don't want to see
+		  messages from.
+
+/events		- get the events log. this is the list of events that have
+		  happened across all the irc servers you're associated with.
+		  
+		  event types that are logged currently:
+		   - CHANNEL_JOINED: when you join a channel
+		   - JOINED: when someone else joins a channel you're in
+		   - LEFT: when someone else leaves a channel you're in
+		   - NEW_TOPIC: when someone changes the topic of a channel
+                                you're in
+		   - HIGHLIGHT: when someone mentions your nickname, or sends
+                                a message with one or more of the words in your
+                                highlight list(s).
+		   - ...
+
+		  events and chat messages have the same JSON data structure:
+		  messages:
+			{"timestamp": <epoch time>, "server": <irc host>,
+			 "nick": <who caused the event>,
+			 "message": <message/data associated with the event>,
+			 "channel": <#channel_name where event was seen>}
+		  events:
+			identical to the above, except with an extra "event"
+			key, whose value will be one of the event types listed
+			above.
+
+		  to receive only 'unread' events (events that have happened
+		  since you last checked), send a last_checked field in the
+		  POST data. Every event/message has a timestamp which is
+		  a large floating point number; to check for unread events
+		  set last_checked to the timestamp of the last message.
+		
+		  example input:
+			user=owain
+			ctime=1341391316
+			token=fbac67a0a14b17da3da8527eea5351cb97c85ded1b5752a2a1e156d52f3b34d8	(ctime+password, password is 'password')
+			last_checked=0
+
+		  (last_checked=0 would send back all the events ever logged)
+
+		  should no events be available with a timestamp later than
+		  last_checked, the server will hold the HTTP connection open
+		  until events are available. the connection might time out
+		  before then.
+
+/channel/new	- same as /events, get all messages that arrived since after
+		  the timestamp given in last_checked.
+		
+		  additional inputs:
+			channel: the channel to check for messages in.
+
+		  some messages returned are actually events - such as when
+		  someone joins the channel, or the topic is changed, or
+		  someone performs an action.
+
+/channel/highlights, /channel/blocked, /channel/ignore - same as the global
+/highlights, /blocked, /ignore - but each takes additional 'channel' and
+'server' fields in the POST data.
+
+/message	- send a message to a channel or someone.
+		  additional input:
+			server
+			channel: can be a channel OR a user
+			message
+
+		  if message starts with /me, the message will actually be
+		  sent as an action.
