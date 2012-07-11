@@ -73,21 +73,22 @@ class Channel(object):
         self.topic = None
     
 class Message(object):
-    def __init__(self,server,channel,nick,message):
+    def __init__(self,server,channel,nick,message,highlight=False):
         self.timestamp = time()
         self.server = server
         self.channel = channel
         self.nick = nick
         self.message = message
+        self.highlight = highlight
         
 class Event(Message):
-    def __init__(self,server,channel,nick,message,event):
-        Message.__init__(self, server, channel, nick, message)
+    def __init__(self,server,channel,nick,message,event,highlight=False):
+        Message.__init__(self, server, channel, nick, message, highlight)
         self.event = event
         
 class File(Message):
-    def __init__(self,server,channel,nick,message):
-        Message.__init__(self,server,channel,nick,message)
+    def __init__(self,server,channel,nick,message,highlight=False):
+        Message.__init__(self,server,channel,nick,message,highlight)
         self.data = None
         
     def get(self):

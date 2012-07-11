@@ -231,20 +231,25 @@ class IRCServer(Resource):
             a = request.a
             nick = connections[a['user']+'_'+a['server']].irc.nickname
             args = 2
+	    cmd = False
             
             if a['message'].startswith('/me '):
                 func = connections[a['user']+'_'+a['server']].irc.me
                 a['message'] = a['message'][4:]
+		cmd = True
             elif a['message'].startswith('/nick '):
                 func = connections[a['user']+'_'+a['server']].irc.setNick
                 a['message'] = a['message'][6:]
+		cmd = True
             elif a['message'].startswith('/away'):
                 func = connections[a['user']+'_'+a['server']].irc.away
                 a['message'] = a['message'][5:]
                 args = 1
+		cmd = True
             elif a['message'].startswith('/back'):
                 func = connections[a['user']+'_'+a['server']].irc.back
                 args = 0
+		cmd = True
             else:
                 func = connections[a['user']+'_'+a['server']].irc.msg
                 
@@ -260,8 +265,12 @@ class IRCServer(Resource):
             else:
                 channel = a['user']
                 
-            connections[a['user']+'_'+a['server']].irc\
-            .privmsg(nick+'!self',channel,a['message'])
+	    if cmd is True:
+		connections[a['user']+'_'+a['server']].irc\
+		.privmsg(nick+'!self',channel,request.args['message'][0])
+	    else:
+                connections[a['user']+'_'+a['server']].irc\
+                .privmsg(nick+'!self',channel,a['message'])
             
             return '{"message": "s:SENT"}'
     
@@ -464,7 +473,7 @@ class IRCConnection(irc.IRCClient):
     user = property(_get_user)
 
     def signedOn(self):
-        log.l("Signed on as %s" % (self.nickname,))
+        log.l("%s signed onto %s as %s" % (self.user,self.server,self.nickname,))
         for channel in database.user[self.user].master.server[self.server]\
         .channels:
             rejoin(self.user,self.server,channel)
@@ -476,7 +485,7 @@ class IRCConnection(irc.IRCClient):
             data.Event(self.server, channel, self.nickname, None, "CHANNEL_JOINED")
         )
         add_user_to_channel(self.user, self.server, channel, self.nickname)
-        log.l("Joined %s" % (channel,))
+        log.l("%s joined %s on %s" % (self.user,channel,self.server))
     
     def join(self, channel):
         if channel.startswith('#') or channel.startswith('&'):
@@ -485,11 +494,12 @@ class IRCConnection(irc.IRCClient):
     def left(self, channel):
         del database.user[self.user].master.server[self.server]\
         .channels[channel]
-        log.l("Left %s" % (channel,))
+        log.l("%s left %s on %s" % (self.user,channel,self.server))
     
     def privmsg(self, user, channel, msg):
 	msg = msg.decode('utf-8')
         addToEvents = False
+	highlight = False
         c = channel
         if database.user[self.user].master.server[self.server].nick\
         is channel or connections[self.user+'_'+self.server].nickname\
@@ -521,32 +531,30 @@ class IRCConnection(irc.IRCClient):
                 if word.lower() in msg.lower():
                     return
             
-        if msg.startswith('/me '):
-            message = data.Event(self.server, c, user, msg[4:], "ACTION")
-        else:
-            message = data.Message(self.server, c, user, msg)
-        
         if user.endswith('!self') is False:
             highlighted = database.user[self.user].master.events
             highlights = []
             highlights.extend(chan.highlights)
             highlights.extend(database.user[self.user].master.highlights)
-            for highlight in highlights:
-                if highlight.lower() in msg.lower():
+            for h in highlights:
+                if h.lower() in msg.lower():
                     addToEvents = True
-                    eType = "HIGHLIGHT"
+                    highlight = True
             if self.nickname.lower() in msg.lower() \
             or database.user[self.user].master.server[self.server].nick.lower()\
             in msg.lower():
                 addToEvents = True
-                eType = "HIGHLIGHT"
-            
-        if addToEvents is True:
-            event = data.Event(self.server, c, user, message.message, eType)
-            highlighted.append(event)
-	    chan.messages.append(event)
+                highlight = True
+
+        if msg.startswith('/me '):
+            message = data.Event(self.server, c, user, msg[4:], "ACTION", highlight)
         else:
-            chan.messages.append(message)
+            message = data.Message(self.server, c, user, msg, highlight)
+                    
+        if addToEvents is True:
+            highlighted.append(message)
+
+        chan.messages.append(message)
             
     def action(self, user, channel, data):
         self.privmsg(user, channel, "/me "+data)
