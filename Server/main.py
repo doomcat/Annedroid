@@ -157,9 +157,15 @@ class Auth(Page):
             return '{"message": "s:BAD_AUTH"}'
 
         if username in database.user.keys():
-            cookie = generate_cookie(username)
-            database.user[username].cookie = cookie
+	    if database.user[username].cookie == None\
+	    or 'reauth' in request.args.keys():
+	        cookie = generate_cookie(username)
+	        database.user[username].cookie = cookie
+            else:
+                cookie = database.user[username].cookie
             return '{"cookie": "%s"}' % (cookie,)
+	else:
+	    return '{"message": "s:NO_SUCH_USER"}'
 
 class IRCServer(Resource):
     class Nick(Page):
