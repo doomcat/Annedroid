@@ -45,7 +45,6 @@ def remove_user_from_channel(dbuser,server,channel,user):
         log.l(e)
 
 def to_json(object):
-    #return json.dumps(object.__dict__)
     return str(jsonpickle.encode(object))
 
 def to_json_simple(object):
@@ -62,14 +61,9 @@ def sync_time(client_time,timestamp):
 
 def parse_args(request):
     out = {}
-    #for arg in ['user','server','channel','message','last_checked','nick','wait']:
-    #    try: out[arg] = request.args[arg][0]
-    #    except KeyError: pass
-    #return out
     for arg in request.args:
     	out[arg] = request.args[arg][0]
     return out
-    #return {arg, request.args[0] for arg in request.args}
 
 class Page(Resource):
     '''Default Page class: handles checking for authentication etc., making it
@@ -84,10 +78,8 @@ class Page(Resource):
                 username = request.args['user'][0]
                 if self.needsAdmin and database.user[username].admin != True:
                     return self.error(request)
-                client_time = request.args['ctime'][0]
                 client_hash = request.args['token'][0]
-                server_pass = database.user[username].password
-                server_hash = sha256(client_time+server_pass).hexdigest()
+                server_hash = database.user[username].cookie
                 if client_hash == server_hash:
                     request.a = parse_args(request)
                     return self.run(request)
@@ -98,11 +90,10 @@ class Page(Resource):
         else:
             return self.run(request)
     
-    def render_GET(self, request):
-        if self.needsAuth is True:
-            return self.error(request)
-        else:
-            return self.render_POST(request)
+#    def render_GET(self, request):
+#            return self.render_POST(request)
+
+    render_GET = render_POST
     
     def run(self, request):
         pass
@@ -152,7 +143,8 @@ class Registration42(Registration):
 	i = IRCServer.Connect()
 	i.run(request)
 	connections[request.args['user'][0]+'_'+'irc.aberwiki.org'].irc.join('#42')
-	return "Registered, connected and joined #42. Go back to http://annedroid.slashingedge.co.uk/#42"
+	request.setHeader('Location','/login.php')
+	return "Registered, connected and joined #42. Go back to /login.php"
 
 class Auth(Page):
     needsAuth = False
@@ -299,12 +291,18 @@ class KeepAlive(Page):
     
     def messages_get(self, request, limit=0):
         a = request.a
+	before = False
         messages = self.message_provider(request)
+	if 'before' in a.keys() and a['before'] == 'true':
+		before = True
             
         if 'last_checked' in a.keys():
             if a['last_checked'] is not '':
                 t = float(a['last_checked'])
-                out = [m for m in messages if (m.timestamp > t)]
+		if before == True:
+			out = [m for m in messages if(m.timestamp < t)]
+		else:
+	                out = [m for m in messages if (m.timestamp > t)]
                 if limit != 0 and len(out) > limit:
                     return out[-limit:]
                 return out
@@ -314,7 +312,7 @@ class KeepAlive(Page):
     def run_loop(self, request):
         limit = 0
         if 'limit' in request.a.keys():
-            limit = int(request.a['limit'])        
+            limit = int(request.a['limit'])
 
         messages = self.messages_get(request,limit)
 
@@ -454,6 +452,77 @@ class Info(Page):
         username = request.args['user'][0]
         return to_json(database.user[username])
 
+class Search(Page):
+    isLeaf = True
+    def run(self, request):
+        user = request.a['user']
+        nick = ''
+        words = []
+        events = []
+        server = ''
+        channel = ''
+
+        if 'nick' in request.a.keys():
+            nick = request.a['nick']
+        if 'words' in request.a.keys() and 'words' != '':
+            words = request.a['words'].split(' ')
+        if 'events' in request.a.keys() and 'events' != '':
+            events = request.a['events'].split(' ')
+        if 'server' in request.a.keys():
+            server = request.a['server']
+        if 'channel' in request.a.keys():
+            channel = request.a['channel']
+
+        if nick is '' and words is [] and events is []:
+            return '{"results": []}'
+
+        results = set()
+
+        for s in database.user[user].master.server:
+            for c in database.user[user].master.server[s]\
+            .channels:
+                for msg in database.user[user].master.server[s]\
+                .channels[c].messages:
+                    if self.is_result(msg, nick, words, events):
+                        results.add(msg)
+                        
+        for e in database.user[user].master.events:
+            if self.is_result(e, nick, words, events):
+                results.add(e)
+
+        if len(results) == 0:
+            return '{"results": []}'
+
+        out = '{"results:" [\n'
+        for r in results:
+            out += to_json_simple(r)+',\n'
+        out = out[:-2]+'\n]}'
+
+        return out
+
+    def is_result(self, msg, nick, words, events):
+	add = 0
+	if len(nick) > 1 and msg.nick.lower().startswith(nick.lower()):
+		add += 1
+	if words != []:
+		if msg.message != None:
+			for word in words:
+				if word != ''\
+				and word.lower() in msg.message.lower():
+					add += 1
+		else:
+			add -= 1
+	if events != []:
+		if 'event' in msg.__dict__.keys() and msg.event != None:
+			for event in events:
+				if event != ''\
+				and event.lower() in msg.event.lower():
+					add += 1
+		else:
+			add -= 1
+	if add > 0: return True
+	return False
+
 def save_data():
     log.l("Periodic database save")
     database.save()
@@ -479,8 +548,10 @@ class IRCConnection(irc.IRCClient):
             rejoin(self.user,self.server,channel)
         
     def joined(self, channel):
-        database.user[self.user].master.server[self.server].channels[channel]\
-        = data.Channel()
+	if channel not in \
+	database.user[self.user].master.server[self.server].channels.keys():
+	    database.user[self.user].master.server[self.server]\
+	    .channels[channel] = data.Channel()
         database.user[self.user].master.events.append(
             data.Event(self.server, channel, self.nickname, None, "CHANNEL_JOINED")
         )
@@ -646,6 +717,7 @@ def rejoin(user,server,channel):
     connections[user+'_'+server].irc.join(channel)
 
 def restore():
+    if config.TEST_NO_IRC == True: return
     for user in database.user:
         for server in database.user[user].master.server:
             nick = database.user[user].master.server[server].nick
@@ -696,6 +768,7 @@ if __name__ == '__main__':
     root.putChild('ignore',Ignore())
     root.putChild('blocked',Blocked())
     root.putChild('register42',Registration42())    
+    root.putChild('search',Search())
     site = Site(root)
 
     restore()

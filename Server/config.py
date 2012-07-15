@@ -11,3 +11,8 @@ ADMINS = ['owain'] # what usernames have admin capability
 CHAT_BUFFER = 1000 # how many lines of chat to buffer per conversation
 CTCP_VERSION_NAME = "Annedroid/Server [https://github.com/doomcat/Annedroid]"
 URL = "http://annedroid.slashingedge.co.uk" # where is this server running?
+
+TEST_NO_IRC = False	# if you are developing and don't want to keep
+		   	# (dis)connecting from servers and annoying people, you
+			# can disable the actual IRC part. the database won't be
+			# cleared, allowing you to test the HTTP part.

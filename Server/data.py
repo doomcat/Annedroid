@@ -80,11 +80,25 @@ class Message(object):
         self.nick = nick
         self.message = message
         self.highlight = highlight
+
+    def __key(self):
+        return (self.timestamp, self.server, self.channel,
+                self.nick, self.message)
+
+    def __eq__(x,y):
+        return x.__key() == y.__key()
+
+    def __hash__(self):
+        return hash(self.__key())
         
 class Event(Message):
     def __init__(self,server,channel,nick,message,event,highlight=False):
         Message.__init__(self, server, channel, nick, message, highlight)
         self.event = event
+
+    def __key(self):
+        return (self.timestamp, self.server, self.channel,
+                self.nick, self.message, self.event)
         
 class File(Message):
     def __init__(self,server,channel,nick,message,highlight=False):
