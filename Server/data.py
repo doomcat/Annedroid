@@ -46,6 +46,8 @@ class User(object):
         self.password = None
         self.admin = False
         self.master = Master()
+	self.cookie = ''
+	self.readonly = False
 
 class Master(object):
     def __init__(self):

@@ -8,7 +8,8 @@ GARBAGE_COLLECT_RATE = 60 # interval between GC runs, in seconds (not python gc)
 DEFAULT_NICK = "TestUser_"
 DEFAULT_NICK_I = 0
 ADMINS = ['owain'] # what usernames have admin capability
-CHAT_BUFFER = 1000 # how many lines of chat to buffer per conversation
+READONLY = ['eyearesee'] # usernames that can't send messages
+CHAT_BUFFER = 4000 # how many lines of chat to buffer per conversation
 CTCP_VERSION_NAME = "Annedroid/Server [https://github.com/doomcat/Annedroid]"
 URL = "http://annedroid.slashingedge.co.uk" # where is this server running?
 

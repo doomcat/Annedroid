@@ -1,9 +1,10 @@
 #!/usr/bin/python -OO
+# -*- coding: utf-8 -*-
 '''
 @author: Owain Jones [odj@aber.ac.uk]
 '''
 
-import data, jsonpickle, json
+import data, jsonpickle, json, re
 from logger import Logger
 from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
@@ -13,6 +14,8 @@ from twisted.internet.task import LoopingCall, deferLater
 from time import time, sleep
 from hashlib import sha256
 from itertools import izip, cycle
+
+url_regex = re.compile(r"""((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.‌​][a-z]{2,4}/)(?:[^\s()<>]+|(([^\s()<>]+|(([^\s()<>]+)))*))+(?:(([^\s()<>]+|(‌​([^\s()<>]+)))*)|[^\s`!()[]{};:'".,<>?«»“”‘’]))""", re.DOTALL)
 
 import config
 
@@ -112,6 +115,7 @@ class Registration(Page):
             return '{"message": "s:ALREADY_REGISTERED"}'
         database.user[username] = data.User()
         database.user[username].password = password
+	database.user[username].cookie = generate_cookie(username)
         log.l("New user "+username+" registered.")
         return '{"message": "s:REGISTER_SUCCESS"}'
 
@@ -154,9 +158,10 @@ class Auth(Page):
             username = request.args['username'][0]
             password = request.args['password'][0]
         else:
-            return '{"message": "s:BAD_AUTH"}'
+            return '{"error": "s:BAD_AUTH"}'
 
-        if username in database.user.keys():
+        if username in database.user.keys()\
+	and database.user[username].password == password:
 	    if database.user[username].cookie == None\
 	    or 'reauth' in request.args.keys():
 	        cookie = generate_cookie(username)
@@ -165,18 +170,16 @@ class Auth(Page):
                 cookie = database.user[username].cookie
             return '{"cookie": "%s"}' % (cookie,)
 	else:
-	    return '{"message": "s:NO_SUCH_USER"}'
+	    return '{"error": "s:BAD_AUTH"}'
 
 class IRCServer(Resource):
     class Nick(Page):
         def run(self, request):
             a = request.a
-            if 'message' in a.keys() and a['message'] != '':
-                connections[a['user']+'_'+a['server']].irc.setNick(a['message'])
-                return '{"message": "s:NICK_CHANGED"}'
-            else:
-                return '{"nick": "%s"}'\
-                % (connections[a['user']+'_'+a['server']].nickname,)
+            if 'nick' in a.keys() and a['nick'] != '':
+                connections[a['user']+'_'+a['server']].irc.setNick(a['nick'])
+            return '{"nick": "%s"}'\
+            % (connections[a['user']+'_'+a['server']].nickname,)
             
     class Connect(Page):
         isLeaf = True
@@ -195,6 +198,7 @@ class IRCServer(Resource):
                 reactor\
                 .connectTCP(a['server'], 6667,\
                 connections[a['user']+'_'+a['server']])
+		connections[a['user']+'_'+a['server']].setNick(a['nick'])
                 
                 return '{"message": "s:CONNECTING"}'
             else:
@@ -213,6 +217,7 @@ class IRCServer(Resource):
         isLeaf = True
         def run(self, request):
             a = request.a
+	    IRCServer.Connect().run(request)
             connections[a['user']+'_'+a['server']].irc.join(a['channel'])
             return '{"message": "s:JOINED"}'
         
@@ -227,6 +232,10 @@ class IRCServer(Resource):
         isLeaf = True
         def run(self, request):
             a = request.a
+            try:
+		if database.user[a['user']].readonly == True: return '{"error": "s:PERMISSION_DENIED"}'
+	    except AttributeError:
+	        pass
             nick = connections[a['user']+'_'+a['server']].irc.nickname
             args = 2
 	    cmd = False
@@ -299,7 +308,7 @@ class KeepAlive(Page):
         a = request.a
 	before = False
         messages = self.message_provider(request)
-	if 'before' in a.keys() and a['before'] == 'true':
+	if 'before' in a.keys() and (a['before'] == True or a['before'].lower() == 'true'):
 		before = True
             
         if 'last_checked' in a.keys():
@@ -339,7 +348,7 @@ class KeepAlive(Page):
         messages = self.messages_get(request,limit)
 
         if len(messages) == 0 and 'wait' in request.a.keys()\
-        and request.a['wait'] == 'true':
+        and request.a['wait'] in [True, 'true', 'True']:
             deferLater(reactor, 1, self.run_loop, request)
             return NOT_DONE_YET
         else:
@@ -389,6 +398,14 @@ class Channel(Page):
     class New(KeepAlive):
         pass
 
+    class Topic(Page):
+	def run(self, request):
+		a = request.a
+		topic = database.user[a['user']].master.server[a['server']]\
+		.channels[a['channel']].topic
+
+		return '{"topic": "%s"}' % (topic,)
+
     class Highlights(ConfigureList):
         def get_list(self, request):
             a = request.a
@@ -416,13 +433,24 @@ class Channel(Page):
         def set_list(self, request):
             pass
 
+    class Clear(Page):
+        def run(self, request):
+            a = request.a
+            if 'clear' in a.keys()\
+            and (a['clear'] is True or a['clear'] == 'true'):
+                database.user[a['user']].master.server[a['server']]\
+                .channels[a['channel']].messages = []
+	    return '{"status": "cleared"}'
+
     def __init__(self):
         Page.__init__(self)
+	self.putChild('topic',self.Topic())
         self.putChild('new', self.New())
         self.putChild('highlights', self.Highlights())
         self.putChild('blocked', self.Blocked())
         self.putChild('ignore', self.Ignore())
         self.putChild('users', self.Users())
+        self.putChild('clear', self.Clear())
 
 class Events(KeepAlive):
     def message_provider(self, request):
@@ -467,17 +495,21 @@ class Search(Page):
         events = []
         server = ''
         channel = ''
+	urls = False
 
         if 'nick' in request.a.keys():
             nick = request.a['nick']
-        if 'words' in request.a.keys() and 'words' != '':
+        if 'words' in request.a.keys() and request.a['words'] != '':
             words = request.a['words'].split(' ')
-        if 'events' in request.a.keys() and 'events' != '':
+        if 'events' in request.a.keys() and request.a['events'] != '':
             events = request.a['events'].split(' ')
         if 'server' in request.a.keys():
             server = request.a['server']
         if 'channel' in request.a.keys():
             channel = request.a['channel']
+	if 'urls' in request.a.keys()\
+	and (request.a['urls'] == True or request.a['urls'].lower() == 'true'):
+	    urls = True
 
         if nick is '' and words is [] and events is []:
             return '{"results": []}'
@@ -489,17 +521,25 @@ class Search(Page):
             .channels:
                 for msg in database.user[user].master.server[s]\
                 .channels[c].messages:
-                    if self.is_result(msg, nick, words, events):
-                        results.add(msg)
+		    if not urls:
+                        if self.is_result(msg, nick, words, events):
+                            results.add(msg)
+                    else:
+                        if self.has_url(msg):
+                            results.add(msg)
                         
         for e in database.user[user].master.events:
-            if self.is_result(e, nick, words, events):
-                results.add(e)
+            if not urls:
+                if self.is_result(e, nick, words, events):
+                    results.add(e)
+            else:
+                if self.has_url(e):
+                    results.add(e)
 
         if len(results) == 0:
             return '{"results": []}'
 
-        out = '{"results:" [\n'
+        out = '{"results": [\n'
         for r in results:
             out += to_json_simple(r)+',\n'
         out = out[:-2]+'\n]}'
@@ -529,6 +569,11 @@ class Search(Page):
 	if add > 0: return True
 	return False
 
+    def has_url(self, msg):
+        if msg.message != None:
+            return url_regex.search(msg.message)
+        return False
+
 def save_data():
     log.l("Periodic database save")
     database.save()
@@ -543,7 +588,7 @@ class IRCConnection(irc.IRCClient):
         return self.factory.server
     def _get_user(self):
         return self.factory.user
-    nickname = property(_get_nickname)
+    #nickname = property(_get_nickname)
     server = property(_get_server)
     user = property(_get_user)
 
@@ -576,7 +621,7 @@ class IRCConnection(irc.IRCClient):
     def privmsg(self, user, channel, msg):
 	msg = msg.decode('utf-8')
         addToEvents = False
-	highlight = False
+	highlight = ''
         c = channel
         if database.user[self.user].master.server[self.server].nick\
         is channel or connections[self.user+'_'+self.server].nickname\
@@ -616,12 +661,12 @@ class IRCConnection(irc.IRCClient):
             for h in highlights:
                 if h.lower() in msg.lower():
                     addToEvents = True
-                    highlight = True
+                    highlight += h+' '
             if self.nickname.lower() in msg.lower() \
             or database.user[self.user].master.server[self.server].nick.lower()\
             in msg.lower():
                 addToEvents = True
-                highlight = True
+                highlight += self.nickname.lower()+' '
 
         if msg.startswith('/me '):
             message = data.Event(self.server, c, user, msg[4:], "ACTION", highlight)
@@ -672,7 +717,6 @@ class IRCConnection(irc.IRCClient):
     def userQuit(self, user, quitMsg):
         event = data.Event(self.server, None, user, quitMsg, "QUIT")
         database.user[self.user].master.events.append(event)
-        remove_user_from_channel(self.user, self.server, channel, user)
         
     def userKicked(self, kickee, channel, kicker, message):
         event = data.Event(self.server, channel, kickee, kicker, "OTHER_KICKED")
@@ -730,6 +774,7 @@ def restore():
             reconnect(user,server,nick)   
 
 def garbage_collect():
+    if config.CHAT_BUFFER == -1: return
     objects = 0
     for user in database.user:
         for server in database.user[user].master.server:
@@ -761,6 +806,14 @@ if __name__ == '__main__':
         except KeyError:
             log.l("Failed to set %s to admin - user doesn't exist yet."\
                    % (user,))
+
+    for user in config.READONLY:
+        try:
+            database.user[user].readonly = True
+            log.l("Made user %s readonly" % (user,))
+        except KeyError:
+            log.l("Failed to make %s readonly - user doesn't exist yet."\
+                   % (user,))
     
     root = Page()
     root.putChild('saveDB',SaveDB())
@@ -780,7 +833,8 @@ if __name__ == '__main__':
     restore()
 
     lc = LoopingCall(save_data).start(config.SAVE_RATE)
-    gc = LoopingCall(garbage_collect).start(config.GARBAGE_COLLECT_RATE)
+    if config.CHAT_BUFFER != 0:
+        gc = LoopingCall(garbage_collect).start(config.GARBAGE_COLLECT_RATE)
     
     reactor.listenTCP(config.PORT, site)
     reactor.run()
