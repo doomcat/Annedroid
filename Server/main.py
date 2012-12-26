@@ -220,7 +220,7 @@ class Channel(Page):
             .channels[a['channel']].messages
             
             if 'last_checked' in a.keys():
-                t = a['last_checked']
+                t = float(a['last_checked'])
                 return [m for m in messages if (m.timestamp > t)]
             
             return messages
@@ -234,6 +234,7 @@ class Channel(Page):
             else:
                 request.write(self.messages_str(messages))
                 request.finish()
+                return
             
         def run(self, request):
             messages = self.messages_get(request)
