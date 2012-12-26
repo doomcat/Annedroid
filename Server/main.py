@@ -160,8 +160,6 @@ class IRCServer(Resource):
             a = request.a
             nick = connections[a['user']+'_'+a['server']].irc.nickname
             
-            mobj = data.Message(a['server'],a['channel'],nick,a['message'])
-
             if a['message'].startswith('/me '):
                 func = connections[a['user']+'_'+a['server']].irc.me
             else:
@@ -169,9 +167,9 @@ class IRCServer(Resource):
                 
             func(a['channel'], a['message'])
 
-            channel = a['channel']
-            if channel.startsWith('#') == False\
-            and channel.startsWith('&') == False:
+            if a['channel'].startswith('#') or a['channel'].startswith('&'):
+                channel = a['channel']
+            else:
                 channel = a['user']
                 
             connections[a['user']+'_'+a['server']].irc\
