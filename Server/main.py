@@ -226,9 +226,6 @@ class Channel(Page):
             return messages
             
         def run_loop(self, request):
-            a = request.a
-            user = a['user'], server = a['server'], channel = a['channel']
-        
             messages = self.messages_get(request)
         
             if len(messages) == 0:
@@ -239,9 +236,6 @@ class Channel(Page):
                 request.finish()
             
         def run(self, request):
-            a = request.a
-            user = a['user'], server = a['server'], channel = a['channel']
-            
             messages = self.messages_get(request)
             
             if len(messages) == 0:
