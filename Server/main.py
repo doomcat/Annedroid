@@ -440,7 +440,7 @@ def restore():
 def garbage_collect():
     objects = 0
     for user in database.user:
-        for server in database.user[user].master:
+        for server in database.user[user].master.server:
             for channel in database.user[user].master.server[server].channels:
                 c = database.user[user].master.server[server].channels[channel]
                 l = len(c.messages)
