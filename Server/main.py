@@ -344,16 +344,11 @@ class IRCConnection(irc.IRCClient):
             addToEvents = True
             eType = "HIGHLIGHT"
             
-        if len(highlighted) > int(config.CHAT_BUFFER/10):
-            highlighted = highlighted[:-int(config.CHAT_BUFFER/10)]
         chan.messages.append(message)
         
         if addToEvents is True:
             event = data.Event(self.server, c, user, message.message, eType)
             highlighted.append(event)
-        
-        if len(chan.messages) > config.CHAT_BUFFER:
-            chan.messages = chan.messages[-config.CHAT_BUFFER:]
             
     def action(self, user, channel, data):
         self.privmsg(user, channel, "/me "+data)
@@ -442,6 +437,23 @@ def restore():
             nick = database.user[user].master.server[server].nick
             reconnect(user,server,nick)   
 
+def garbage_collect():
+    objects = 0
+    for user in database.user:
+        for server in database.user[user].master:
+            for channel in database.user[user].master.server[server].channels:
+                c = database.user[user].master.server[server].channels[channel]
+                l = len(c.messages)
+                if l > int(config.CHAT_BUFFER):
+                    c.messages = c.messages[:-int(config.CHAT_BUFFER)]
+                    objects += (l-int(config.CHAT_BUFFER))
+        m = database.user[user].master.events
+        l = len(m)
+        if l > int(config.CHAT_BUFFER/10):
+            m = m[:-int(config.CHAT_BUFFER/10)]
+            objects += (l-int(config.CHAT_BUFFER/10))
+    log.l("Garbage Collection run: %s objects cleared." % (objects,))
+
 if __name__ == '__main__':
     log.l("Yes, this is dog")
     
@@ -468,6 +480,7 @@ if __name__ == '__main__':
     restore()
 
     lc = LoopingCall(save_data).start(config.SAVE_RATE)
+    gc = LoopingCall(garbage_collect).start(config.GARBAGE_COLLECT_RAGE)
     
     reactor.listenTCP(config.PORT, site)
     reactor.run()

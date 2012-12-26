@@ -3,7 +3,8 @@
 PORT = 8081 # what port to run the HTTP server on
 
 VERSION = 'pre-alpha'
-SAVE_RATE = 60 # interval between each database save, in seconds
+SAVE_RATE = 180 # interval between each database save, in seconds
+GARBAGE_COLLECT_RATE = 60 # interval between GC runs, in seconds (not python gc)
 DEFAULT_NICK = "TestUser_"
 DEFAULT_NICK_I = 0
 ADMINS = ['owain'] # what usernames have admin capability
