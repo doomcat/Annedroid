@@ -480,7 +480,7 @@ if __name__ == '__main__':
     restore()
 
     lc = LoopingCall(save_data).start(config.SAVE_RATE)
-    gc = LoopingCall(garbage_collect).start(config.GARBAGE_COLLECT_RAGE)
+    gc = LoopingCall(garbage_collect).start(config.GARBAGE_COLLECT_RATE)
     
     reactor.listenTCP(config.PORT, site)
     reactor.run()
