@@ -58,11 +58,9 @@ class Master(object):
     
 class Server(object):
     def __init__(self):
-        self.highlights = set()
-        self.ignore = set()
-        self.blocked = set()
         self.nick = None
         self.channels = {}
+        self.motd = None
     
 class Channel(object):
     def __init__(self):
@@ -71,6 +69,7 @@ class Channel(object):
         self.blocked = set()
         self.messages = []
         self.buffer = []
+        self.topic = None
     
 class Message(object):
     def __init__(self,server,channel,nick,message):

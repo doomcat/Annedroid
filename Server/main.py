@@ -159,11 +159,19 @@ class IRCServer(Resource):
         def run(self, request):
             a = request.a
             nick = connections[a['user']+'_'+a['server']].irc.nickname
+            
             mobj = data.Message(a['server'],a['channel'],nick,a['message'])
-            database.user[a['user']].master.server[a['server']]\
-            .channels[a['channel']].messages.append(mobj)
+
+            if a['message'].startswith('/me '):
+                func = connections[a['user']+'_'+a['server']].irc.me
+            else:
+                func = connections[a['user']+'_'+a['server']].irc.msg
+                
+            func(a['channel'], a['message'])
+
             connections[a['user']+'_'+a['server']].irc\
-            .msg(a['channel'], a['message'])
+            .privmsg(nick,a['channel'],a['message'])
+            
             return '{"message": "s:SENT"}'
     
     def __init__(self):
@@ -190,39 +198,57 @@ class Channel(Page):
         a = request.a
         messages = database.user[a['user']].master.server[a['server']]\
         .channels[a['channel']].messages
+        
         out = '{"messages": [\n'
         for message in messages:
             out += to_json_simple(message)+',\n'
-        out = out[:-2]
-        out += '\n]}'
+        out = out[:-2]+'\n]}'
         return out
         
     class New(Page):
-        def run(self, request):
-            request.user = request.args['user'][0]
-            request.server = request.args['server'][0]
-            request.channel = request.args['channel'][0]
-            
-            if len(database.user[request.user].master.server[request.server]\
-                .channels[request.channel].buffer) == 0:
-                request.oneshot = False
-                deferLater(reactor, 1, self.run, request)
-                return NOT_DONE_YET
-            else:
-                request.oneshot = True
-            
-            messages = database.user[request.user].master\
-            .server[request.server].channels[request.channel].buffer
+        def messages_str(self, messages):
             out = '{"messages": [\n'
             for message in messages:
                 out += to_json_simple(message)+',\n'
-            out = out[:-2]
-            out += '\n]}'
-            database.user[request.user].master.server[request.server]\
-            .channels[request.channel].buffer = []
+            out = out[:-2]+'\n]}'
             
-            request.write(out)
-            request.finish()
+            return out
+            
+        def messages_get(self, request):
+            a = request.a
+            messages = database.user[a['user']].master.server[a['server']]\
+            .channels[a['channel']].messages
+            
+            if 'last_checked' in a.keys():
+                t = a['last_checked']
+                return [m for m in messages if (m.timestamp > t)]
+            
+            return messages
+            
+        def run_loop(self, request):
+            a = request.a
+            user = a['user'], server = a['server'], channel = a['channel']
+        
+            messages = self.messages_get(request)
+        
+            if len(messages) == 0:
+                deferLater(reactor, 1, self.run_loop, request)
+                return NOT_DONE_YET
+            else:
+                request.write(self.messages_str(messages))
+                request.finish()
+            
+        def run(self, request):
+            a = request.a
+            user = a['user'], server = a['server'], channel = a['channel']
+            
+            messages = self.messages_get(request)
+            
+            if len(messages) == 0:
+                deferLater(reactor, 1, self.run_loop, request)
+                return NOT_DONE_YET
+            else:
+                return self.messages_str(messages)
 
     def __init__(self):
         Page.__init__(self)
@@ -283,40 +309,67 @@ class IRCConnection(irc.IRCClient):
         )
         log.l("Joined %s" % (channel,))
     
+    def join(self, channel):
+        if channel.startswith('#') or channel.startswith('&'):
+            irc.IRCClient.join(self, channel)
+        
     def left(self, channel):
         del database.user[self.user].master.server[self.server]\
         .channels[channel]
         log.l("Left %s" % (channel,))
     
     def privmsg(self, user, channel, msg):
+        log.l("PRIVMSG: %s, %s" % (user, channel))
+        c = channel
         if channel not in database.user[self.user].master.server[self.server]\
         .channels.keys():
-        #    database.user[self.user].master.server[self.server]\
-        #    .channels[channel] = Channel()
-            self.joined(channel)
+            if database.user[self.user].master.server[self.server].nick\
+            is channel or connections[self.user+'_'+self.server].nickname\
+            is channel:
+                c = user
+            self.joined(c)
             
         chan = database.user[self.user].master.server[self.server]\
-        .channels[channel]
+        .channels[c]
         
-        message = data.Message(self.server, channel, user, msg)
+        if msg.startswith('/me '):
+            message = data.Event(self.server, c, user, msg[4:], "ACTION")
+        else:
+            message = data.Message(self.server, c, user, msg)
+        
         highlighted = database.user[self.user].master.events
-        
         for highlight in chan.highlights:
             if highlight.lower() in msg.lower():
-                highlighted.append(data.Event(self.server, channel, user, msg,\
-                "highlight"))
-                
+                highlighted.append(data.Event(self.server, c, user, msg,\
+                "highlight"))     
         if self.nickname.lower() in msg.lower() \
         or database.user[self.user].master.server[self.server].nick.lower() in \
         msg.lower():
-            highlighted.append(data.Event(self.server, channel, user, msg,\
+            highlighted.append(data.Event(self.server, c, user, msg,\
             "highlight"))
             
         if len(highlighted) > int(config.CHAT_BUFFER/10):
             highlighted = highlighted[:-int(config.CHAT_BUFFER/10)]
         chan.messages.append(message)
         if len(chan.messages) > config.CHAT_BUFFER:
-            chan.messages = chan.messages[:-config.CHAT_BUFFER]
+            chan.messages = chan.messages[-config.CHAT_BUFFER:]
+            
+    def action(self, user, channel, data):
+        self.privmsg(user, channel, "/me "+data)
+        
+    def receivedMOTD(self, motd):
+        database.user[self.user].master.server[self.server].motd\
+        = '\n'.join(motd)
+        
+    def topicUpdated(self, user, channel, newTopic):
+        database.user[self.user].master.server[self.server].channels[channel]\
+        .topic = newTopic
+        event = data.Event(self.server, channel, user, newTopic, "NEW_TOPIC")
+        database.user[self.user].master.events.append(event)
+
+    def userRenamed(self, user, oldName, newName):
+        event = data.Event(self.server, None, oldName, newName, "NAME_CHANGED")
+        database.user[self.user].master.events.append(event)
 
 class IRCFactory(protocol.ClientFactory):
     protocol = IRCConnection
@@ -337,6 +390,10 @@ class IRCFactory(protocol.ClientFactory):
     def buildProtocol(self, addr):
         p = IRCConnection()
         p.factory = self
+        p.versionName = config.CTCP_VERSION_NAME
+        p.versionNum = config.VERSION
+        p.versionEnv = ''
+        
         self.proto = p
         self.irc = p
         return p
@@ -380,9 +437,9 @@ if __name__ == '__main__':
 
     restore()
 
-    lc = LoopingCall(save_data).start(60)
+    lc = LoopingCall(save_data).start(config.SAVE_RATE)
     
-    reactor.listenTCP(8080, site)
+    reactor.listenTCP(config.PORT, site)
     reactor.run()
     
     log.l("Twisted Reactor shutdown, saving database")
