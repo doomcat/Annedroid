@@ -308,13 +308,16 @@ class IRCConnection(irc.IRCClient):
     
     def privmsg(self, user, channel, msg):
         log.l("PRIVMSG: %s, %s" % (user, channel))
+        addToEvents = False
         c = channel
+        if database.user[self.user].master.server[self.server].nick\
+        is channel or connections[self.user+'_'+self.server].nickname\
+        is channel:
+            c = user
+            addToEvents = True
+            eType = "PRIVMSG"
         if channel not in database.user[self.user].master.server[self.server]\
         .channels.keys():
-            if database.user[self.user].master.server[self.server].nick\
-            is channel or connections[self.user+'_'+self.server].nickname\
-            is channel:
-                c = user
             self.joined(c)
             
         chan = database.user[self.user].master.server[self.server]\
@@ -328,17 +331,26 @@ class IRCConnection(irc.IRCClient):
         highlighted = database.user[self.user].master.events
         for highlight in chan.highlights:
             if highlight.lower() in msg.lower():
-                highlighted.append(data.Event(self.server, c, user, msg,\
-                "highlight"))     
+                addToEvents = True
+                eType = "HIGHLIGHT"
+                #highlighted.append(data.Event(self.server, c, user, msg,\
+                #"HIGHLIGHT"))
         if self.nickname.lower() in msg.lower() \
         or database.user[self.user].master.server[self.server].nick.lower() in \
         msg.lower():
-            highlighted.append(data.Event(self.server, c, user, msg,\
-            "highlight"))
+            addToEvents = True
+            eType = "HIGHLIGHT"
+            #highlighted.append(data.Event(self.server, c, user, msg,\
+            #"HIGHLIGHT"))
             
         if len(highlighted) > int(config.CHAT_BUFFER/10):
             highlighted = highlighted[:-int(config.CHAT_BUFFER/10)]
         chan.messages.append(message)
+        
+        if addToEvents is True:
+            event = data.Event(self.server, c, user, message.message, eType)
+            highlighted.append(event)
+        
         if len(chan.messages) > config.CHAT_BUFFER:
             chan.messages = chan.messages[-config.CHAT_BUFFER:]
             
