@@ -353,10 +353,40 @@ class IRCConnection(irc.IRCClient):
         database.user[self.user].master.server[self.server].channels[channel]\
         .topic = newTopic
         event = data.Event(self.server, channel, user, newTopic, "NEW_TOPIC")
+        database.user[self.user].master.server[self.server].channels[channel]\
+        .messages.append(event)
         database.user[self.user].master.events.append(event)
 
     def userRenamed(self, user, oldName, newName):
         event = data.Event(self.server, None, oldName, newName, "NAME_CHANGED")
+        database.user[self.user].master.events.append(event)
+
+    def userJoined(self, user, channel):
+        event = data.Event(self.server, channel, user, None, "JOINED")
+        database.user[self.user].master.server[self.server].channels[channel]\
+        .messages.append(event)
+        database.user[self.user].master.events.append(event)
+        
+    def userLeft(self, user, channel):
+        event = data.Event(self.server, channel, user, None, "LEFT")
+        database.user[self.user].master.server[self.server].channels[channel]\
+        .messages.append(event)
+        database.user[self.user].master.events.append(event)
+        
+    def userQuit(self, user, quitMsg):
+        event = data.Event(self.server, None, user, quitMsg, "QUIT")
+        database.user[self.user].master.events.append(event)
+        
+    def userKicked(self, kickee, channel, kicker, message):
+        event = data.Event(self.server, channel, kickee, kicker, "OTHER_KICKED")
+        database.user[self.user].master.server[self.server].channels[channel]\
+        .messages.append(event)
+        database.user[self.user].master.events.append(event)
+
+    def kickedFrom(self, channel, kicker, message):
+        event = data.Event(self.server, channel, kicker, message, "SELF_KICKED")
+        database.user[self.user].master.server[self.server].channels[channel]\
+        .messages.append(event)
         database.user[self.user].master.events.append(event)
 
 class IRCFactory(protocol.ClientFactory):
