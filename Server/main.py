@@ -169,8 +169,13 @@ class IRCServer(Resource):
                 
             func(a['channel'], a['message'])
 
+            channel = a['channel']
+            if channel.startsWith('#') == False\
+            and channel.startsWith('&') == False:
+                channel = a['user']
+                
             connections[a['user']+'_'+a['server']].irc\
-            .privmsg(nick,a['channel'],a['message'])
+            .privmsg(nick,channel,a['message'])
             
             return '{"message": "s:SENT"}'
     
@@ -293,7 +298,7 @@ class IRCConnection(irc.IRCClient):
         database.user[self.user].master.server[self.server].channels[channel]\
         = data.Channel()
         database.user[self.user].master.events.append(
-            data.Event(self.server, channel, self.user, None, "CHANNEL_JOINED")
+            data.Event(self.server, channel, self.nickname, None, "CHANNEL_JOINED")
         )
         log.l("Joined %s" % (channel,))
     
@@ -307,7 +312,6 @@ class IRCConnection(irc.IRCClient):
         log.l("Left %s" % (channel,))
     
     def privmsg(self, user, channel, msg):
-        log.l("PRIVMSG: %s, %s" % (user, channel))
         addToEvents = False
         c = channel
         if database.user[self.user].master.server[self.server].nick\
@@ -329,19 +333,18 @@ class IRCConnection(irc.IRCClient):
             message = data.Message(self.server, c, user, msg)
         
         highlighted = database.user[self.user].master.events
-        for highlight in chan.highlights:
+        highlights = []
+        highlights.extend(chan.highlights)
+        highlights.extend(database.user[self.user].master.highlights)
+        for highlight in highlights:
             if highlight.lower() in msg.lower():
                 addToEvents = True
                 eType = "HIGHLIGHT"
-                #highlighted.append(data.Event(self.server, c, user, msg,\
-                #"HIGHLIGHT"))
         if self.nickname.lower() in msg.lower() \
         or database.user[self.user].master.server[self.server].nick.lower() in \
         msg.lower():
             addToEvents = True
             eType = "HIGHLIGHT"
-            #highlighted.append(data.Event(self.server, c, user, msg,\
-            #"HIGHLIGHT"))
             
         if len(highlighted) > int(config.CHAT_BUFFER/10):
             highlighted = highlighted[:-int(config.CHAT_BUFFER/10)]
