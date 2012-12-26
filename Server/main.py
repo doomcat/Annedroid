@@ -182,17 +182,51 @@ class IRCServer(Resource):
         self.putChild('leave',self.Leave())
         self.putChild('message',self.Message())
     
-class Events(Page):
-    def run(self, request):
-        a = request.a
-        messages = database.user[a['user']].master.events
+class KeepAlive(Page):
+    def messages_str(self, messages):
         out = '{"messages": [\n'
         for message in messages:
             out += to_json_simple(message)+',\n'
-        out = out[:-2]
-        out += '\n]}'
+        out = out[:-2]+'\n]}'
+            
         return out
-
+    
+    def message_provider(self, request):
+        a = request.a
+        return database.user[a['user']].master.server[a['server']]\
+        .channels[a['channel']].messages
+    
+    def messages_get(self, request):
+        a = request.a
+        messages = self.message_provider(request)
+            
+        if 'last_checked' in a.keys():
+            if a['last_checked'] is not '':
+                t = float(a['last_checked'])
+                return [m for m in messages if (m.timestamp > t)]
+            
+        return messages
+            
+    def run_loop(self, request):
+        messages = self.messages_get(request)
+        
+        if len(messages) == 0:
+            deferLater(reactor, 1, self.run_loop, request)
+            return NOT_DONE_YET
+        else:
+            request.write(self.messages_str(messages))
+            request.finish()
+            return
+            
+    def run(self, request):
+        messages = self.messages_get(request)
+            
+        if len(messages) == 0:
+            deferLater(reactor, 1, self.run_loop, request)
+            return NOT_DONE_YET
+        else:
+            return self.messages_str(messages)
+        
 class Channel(Page):
     def run(self, request):
         a = request.a
@@ -205,58 +239,17 @@ class Channel(Page):
         out = out[:-2]+'\n]}'
         return out
         
-    class New(Page):
-        def messages_str(self, messages):
-            out = '{"messages": [\n'
-            for message in messages:
-                out += to_json_simple(message)+',\n'
-            out = out[:-2]+'\n]}'
-            
-            return out
-            
-        def messages_get(self, request):
-            a = request.a
-            messages = database.user[a['user']].master.server[a['server']]\
-            .channels[a['channel']].messages
-            
-            if 'last_checked' in a.keys():
-                t = float(a['last_checked'])
-                return [m for m in messages if (m.timestamp > t)]
-            
-            return messages
-            
-        def run_loop(self, request):
-            messages = self.messages_get(request)
-        
-            if len(messages) == 0:
-                deferLater(reactor, 1, self.run_loop, request)
-                return NOT_DONE_YET
-            else:
-                request.write(self.messages_str(messages))
-                request.finish()
-                return
-            
-        def run(self, request):
-            messages = self.messages_get(request)
-            
-            if len(messages) == 0:
-                deferLater(reactor, 1, self.run_loop, request)
-                return NOT_DONE_YET
-            else:
-                return self.messages_str(messages)
+    class New(KeepAlive):
+        pass
 
     def __init__(self):
         Page.__init__(self)
         self.putChild('new', self.New())
 
-class Eval(Page):
-    isLeaf = True
-    needsAdmin = True
-    def run(self, request):
+class Events(KeepAlive):
+    def message_provider(self, request):
         a = request.a
-        out = eval(a['message'],globals(),locals())
-        log.l("Eval: %s" % (out,))
-        return '{"output": "%s"}' % (out,)
+        return database.user[a['user']].master.events
 
 class SaveDB(Page):
     isLeaf = True
@@ -426,7 +419,6 @@ if __name__ == '__main__':
     root.putChild('channel',Channel())
     root.putChild('events',Events())
     root.putChild('register',Registration())
-    root.putChild('eval',Eval())
     
     site = Site(root)
 
