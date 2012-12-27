@@ -388,14 +388,14 @@ class IRCConnection(irc.IRCClient):
         .channels[c]
         
         ignore = database.user[self.user].master.ignore
-        ignore = blocked.union(database.user[self.user].master\
+        ignore = ignore.union(database.user[self.user].master\
                     .server[self.server].channels[channel].ignore)
         for u in ignore:
             if u is user:
                 return
             
         blocked = database.user[self.user].master.blocked
-        blocked = ignore.union(database.user[self.user].master\
+        blocked = blocked.union(database.user[self.user].master\
                     .server[self.server].channels[channel].blocked)
         for word in blocked:
             return
