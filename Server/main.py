@@ -248,6 +248,7 @@ class ConfigureList(Page):
     
     def set_list(self, request):
         list = self.get_list(request)
+        list.clear()
         for item in request.a['message'].split(' '):
             list.add(item)
     
