@@ -254,6 +254,8 @@ class ConfigureList(Page):
     def print_list(self, request):
         out = '{"list": [\n'
         list = self.get_list(request)
+        if len(list) == 0:
+            return '{"list": []}'
         for word in list:
             out += '"%s",\n' % (word,)
         out = out[:-2]+'\n]}'
@@ -265,7 +267,7 @@ class ConfigureList(Page):
             self.set_list(request)
             return '{"message": "s:LIST_SET"}'
         else:
-            return self.get_list(request)
+            return self.print_list(request)
         
 class Channel(Page):
     def run(self, request):
