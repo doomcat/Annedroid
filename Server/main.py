@@ -112,7 +112,7 @@ class IRCServer(Resource):
     class Nick(Page):
         def run(self, request):
             a = request.a
-            if 'message' in a.keys() and a['message'] not '':
+            if 'message' in a.keys() and a['message'] != '':
                 connections[a['user']+'_'+a['server']].irc.setNick(a['message'])
                 return '{"message": "s:NICK_CHANGED"}'
             else:
