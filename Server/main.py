@@ -169,14 +169,30 @@ class IRCServer(Resource):
         def run(self, request):
             a = request.a
             nick = connections[a['user']+'_'+a['server']].irc.nickname
+            args = 2
             
             if a['message'].startswith('/me '):
                 func = connections[a['user']+'_'+a['server']].irc.me
                 a['message'] = a['message'][4:]
+            elif a['message'].startswith('/nick '):
+                func = connections[a['user']+'_'+a['server']].irc.setNick
+                a['message'] = a['message'][6:]
+            elif a['message'].startswith('/away'):
+                func = connections[a['user']+'_'+a['server']].irc.away
+                a['message'] = a['message'][5:]
+                args = 1
+            elif a['message'].startswith('/back'):
+                func = connections[a['user']+'_'+a['server']].irc.back
+                args = 0
             else:
                 func = connections[a['user']+'_'+a['server']].irc.msg
                 
-            func(a['channel'], a['message'])
+            if args == 2:
+                func(a['channel'], a['message'])
+            elif args == 1:
+                func(a['message'])
+            else:
+                func()
 
             if a['channel'].startswith('#') or a['channel'].startswith('&'):
                 channel = a['channel']
