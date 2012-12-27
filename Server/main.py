@@ -162,6 +162,7 @@ class IRCServer(Resource):
             
             if a['message'].startswith('/me '):
                 func = connections[a['user']+'_'+a['server']].irc.me
+                a['message'] = a['message'][4:]
             else:
                 func = connections[a['user']+'_'+a['server']].irc.msg
                 
@@ -229,6 +230,31 @@ class KeepAlive(Page):
             return NOT_DONE_YET
         else:
             return self.messages_str(messages)
+
+class ConfigureList(Page):
+    def get_list(self, request):
+        pass
+    
+    def set_list(self, request):
+        list = self.get_list(request)
+        for item in request.a['message'].split(' '):
+            list.add(item)
+    
+    def print_list(self, request):
+        out = '{"list": [\n'
+        list = self.get_list(request)
+        for word in list:
+            out += '"%s",\n' % (word,)
+        out = out[:-2]+'\n]}'
+        return out
+    
+    def run(self, request):
+        a = request.a
+        if 'message' in a.keys():
+            self.set_list(request)
+            return '{"message": "s:LIST_SET"}'
+        else:
+            return self.get_list(request)
         
 class Channel(Page):
     def run(self, request):
@@ -245,14 +271,50 @@ class Channel(Page):
     class New(KeepAlive):
         pass
 
+    class Highlights(ConfigureList):
+        def get_list(self, request):
+            a = request.a
+            return database.user[a['user']].master.server[a['server']]\
+            .channels[a['channel']].highlights
+            
+    class Blocked(ConfigureList):
+        def get_list(self, request):
+            a = request.a
+            return database.user[a['user']].master.server[a['server']]\
+            .channels[a['channel']].blocked
+
+    class Ignore(ConfigureList):
+        def get_list(self, request):
+            a = request.a
+            return database.user[a['user']].master.server[a['server']]\
+            .channels[a['channel']].ignore
+
     def __init__(self):
         Page.__init__(self)
         self.putChild('new', self.New())
+        self.putChild('highlights', self.Highlights())
+        self.putChild('blocked', self.Blocked())
+        self.putChild('ignore', self.Ignore())
 
 class Events(KeepAlive):
     def message_provider(self, request):
         a = request.a
         return database.user[a['user']].master.events
+
+class Highlights(ConfigureList):
+    def get_list(self, request):
+        a = request.a
+        return database.user[a['user']].master.highlights
+
+class Blocked(ConfigureList):
+    def get_list(self, request):
+        a = request.a
+        return database.user[a['user']].master.blocked
+
+class Ignore(ConfigureList):
+    def get_list(self, request):
+        a = request.a
+        return database.user[a['user']].master.ignore
 
 class SaveDB(Page):
     isLeaf = True
@@ -324,6 +386,19 @@ class IRCConnection(irc.IRCClient):
             
         chan = database.user[self.user].master.server[self.server]\
         .channels[c]
+        
+        ignore = database.user[self.user].master.ignore
+        ignore = blocked.union(database.user[self.user].master\
+                    .server[self.server].channels[channel].ignore)
+        for u in ignore:
+            if u is user:
+                return
+            
+        blocked = database.user[self.user].master.blocked
+        blocked = ignore.union(database.user[self.user].master\
+                    .server[self.server].channels[channel].blocked)
+        for word in blocked:
+            return
         
         if msg.startswith('/me '):
             message = data.Event(self.server, c, user, msg[4:], "ACTION")
@@ -474,6 +549,9 @@ if __name__ == '__main__':
     root.putChild('channel',Channel())
     root.putChild('events',Events())
     root.putChild('register',Registration())
+    root.putChild('highlights',Highlights())
+    root.putChild('ignore',Ignore())
+    root.putChild('blocked',Blocked())
     
     site = Site(root)
 
