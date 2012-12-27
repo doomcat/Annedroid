@@ -261,7 +261,7 @@ class ConfigureList(Page):
     
     def run(self, request):
         a = request.a
-        if 'message' in a.keys():
+        if 'message' in a.keys() and a['message'] != '':
             self.set_list(request)
             return '{"message": "s:LIST_SET"}'
         else:
