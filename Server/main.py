@@ -109,6 +109,16 @@ class Registration(Page):
 '''
 
 class IRCServer(Resource):
+    class Nick(Page):
+        def run(self, request):
+            a = request.a
+            if 'message' in a.keys() and a['message'] not '':
+                connections[a['user']+'_'+a['server']].irc.setNick(a['message'])
+                return '{"message": "s:NICK_CHANGED"}'
+            else:
+                return '{"nick": "%s"}'\
+                % (connections[a['user']+'_'+a['server']].nickname,)
+            
     class Connect(Page):
         isLeaf = True
         def run(self, request):
@@ -185,6 +195,7 @@ class IRCServer(Resource):
         self.putChild('join',self.Join())
         self.putChild('leave',self.Leave())
         self.putChild('message',self.Message())
+        self.putChild('nick',self.Nick())
     
 class KeepAlive(Page):
     def messages_str(self, messages):
