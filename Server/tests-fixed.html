@@ -2,7 +2,7 @@
 	<body>
 
 		<div><h1>Register</h1>
-			<form method="POST" action="/server/register">
+			<form method="POST" action="/api/register">
 			<p>username: <input type="text" name="username" /></p>
 			<p>password: <input type="password" name="password" /></p>
 			<p><input type="submit" /></p>
@@ -10,7 +10,7 @@
 		<hr />
 
 		<div><h1>Save DB</h1>
-			<form method="POST" action="/server/saveDB">
+			<form method="POST" action="/api/saveDB">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -19,7 +19,7 @@
 		<hr />
 		
 		<div><h1>Get Info</h1>
-			<form method="POST" action="/server/info">
+			<form method="POST" action="/api/info">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -28,7 +28,7 @@
 		<hr />
 		
 		<div><h1>Connect to Server</h1>
-			<form method="POST" action="/server/server/connect">
+			<form method="POST" action="/api/server/connect">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -39,7 +39,7 @@
 		<hr />
 		
 		<div><h1>Disconnect from Server</h1>
-			<form method="POST" action="/server/server/disconnect">
+			<form method="POST" action="/api/server/disconnect">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -49,7 +49,7 @@
 		<hr />
 		
 		<div><h1>Get/Change Nick</h1>
-			<form method="POST" action="/server/server/disconnect">
+			<form method="POST" action="/api/server/nick">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -60,7 +60,7 @@
 		<hr />
 		
 		<div><h1>Join Channel</h1>
-			<form method="POST" action="/server/server/join">
+			<form method="POST" action="/api/server/join">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -71,7 +71,7 @@
 		<hr />
 		
 		<div><h1>Leave Channel</h1>
-			<form method="POST" action="/server/server/leave">
+			<form method="POST" action="/api/server/leave">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -82,7 +82,7 @@
 		<hr />
 		
 		<div><h1>Get/Set Master Highlights</h1>
-			<form method="POST" action="/server/highlights">
+			<form method="POST" action="/api/highlights">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -92,7 +92,7 @@
 		<hr />
 		
 		<div><h1>Send Message</h1>
-			<form method="POST" action="/server/server/message">
+			<form method="POST" action="/api/server/message">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -104,7 +104,7 @@
 		<hr />
 		
 		<div><h1>Get Channel Info</h1>
-			<form method="POST" action="/server/channel">
+			<form method="POST" action="/api/channel">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -115,7 +115,7 @@
 		<hr />
 		
 		<div><h1>Wait For Events</h1>
-			<form method="POST" action="/server/events">
+			<form method="POST" action="/api/events">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -125,7 +125,7 @@
 		<hr />
 		
 		<div><h1>Wait For Message</h1>
-			<form method="POST" action="/server/channel/new">
+			<form method="POST" action="/api/channel/new">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
@@ -137,7 +137,7 @@
 		<hr />
 		
 		<div><h1>Eval Code</h1>
-			<form method="POST" action="/server/eval">
+			<form method="POST" action="/api/eval">
 			<input type="hidden" name="user" value="owain" />
 			<input type="hidden" name="ctime" value="1340895510" />
 			<input type="hidden" name="token" value="8b6e74c2b75fd75e80c8bb3ab0874d622ba9c91f2071a9b229c4bec898f87233" />
