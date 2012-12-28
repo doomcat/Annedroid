@@ -444,7 +444,7 @@ class IRCConnection(irc.IRCClient):
         chan = database.user[self.user].master.server[self.server]\
         .channels[c]
         
-        chan.users.add(user)
+        add_user_to_channel(self.user, self.server, c, user)
         
         ignore = database.user[self.user].master.ignore
         ignore = ignore.union(database.user[self.user].master\
