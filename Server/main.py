@@ -24,7 +24,7 @@ def add_user_to_channel(dbuser,server,channel,user):
     user = user.split('!')[0]
     try:
         database.user[dbuser].server[server].channels[channel].users.add(user)
-    except e:
+    except Exception as e:
         log.l(e)
 
 def remove_user_from_channel(dbuser,server,channel,user):
@@ -32,7 +32,7 @@ def remove_user_from_channel(dbuser,server,channel,user):
     try:
         database.user[dbuser].server[server].channels[channel]\
         .users.discard(user)
-    except e:
+    except Exception as e:
         log.l(e)
 
 def to_json(object):
