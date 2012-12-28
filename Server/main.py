@@ -200,7 +200,7 @@ class IRCServer(Resource):
                 channel = a['user']
                 
             connections[a['user']+'_'+a['server']].irc\
-            .privmsg(nick,channel,a['message'])
+            .privmsg(nick+'!self',channel,a['message'])
             
             return '{"message": "s:SENT"}'
     
