@@ -14,7 +14,7 @@ class Logger:
 
         def log(self, message):
             if self.file is None:
-                print "["+str(time())+"]: "+message
+                print "["+str(time())+"]: "+str(message)
                 
         l = log
 
