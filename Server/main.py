@@ -451,14 +451,15 @@ class IRCConnection(irc.IRCClient):
         ignore = ignore.union(database.user[self.user].master\
                     .server[self.server].channels[channel].ignore)
         for u in ignore:
-            if u is user:
+            if u.lower() is user.lower().split('!')[0]:
                 return
             
         blocked = database.user[self.user].master.blocked
         blocked = blocked.union(database.user[self.user].master\
                     .server[self.server].channels[channel].blocked)
         for word in blocked:
-            return
+            if word.lower() in msg.lower():
+                return
         
         if msg.startswith('/me '):
             message = data.Event(self.server, c, user, msg[4:], "ACTION")
