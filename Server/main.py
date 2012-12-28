@@ -447,38 +447,40 @@ class IRCConnection(irc.IRCClient):
         
         add_user_to_channel(self.user, self.server, c, user)
         
-        ignore = database.user[self.user].master.ignore
-        ignore = ignore.union(database.user[self.user].master\
-                    .server[self.server].channels[channel].ignore)
-        for u in ignore:
-            if u.lower() is user.lower().split('!')[0]:
-                return
+        if user.endswith('!self') is False:
+            ignore = database.user[self.user].master.ignore
+            ignore = ignore.union(database.user[self.user].master\
+                        .server[self.server].channels[channel].ignore)
+            for u in ignore:
+                if u.lower() is user.lower().split('!')[0]:
+                    return
+                
+            blocked = database.user[self.user].master.blocked
+            blocked = blocked.union(database.user[self.user].master\
+                        .server[self.server].channels[channel].blocked)
+            for word in blocked:
+                if word.lower() in msg.lower():
+                    return
             
-        blocked = database.user[self.user].master.blocked
-        blocked = blocked.union(database.user[self.user].master\
-                    .server[self.server].channels[channel].blocked)
-        for word in blocked:
-            if word.lower() in msg.lower():
-                return
-        
         if msg.startswith('/me '):
             message = data.Event(self.server, c, user, msg[4:], "ACTION")
         else:
             message = data.Message(self.server, c, user, msg)
         
-        highlighted = database.user[self.user].master.events
-        highlights = []
-        highlights.extend(chan.highlights)
-        highlights.extend(database.user[self.user].master.highlights)
-        for highlight in highlights:
-            if highlight.lower() in msg.lower():
+        if user.endswith('!self') is False:
+            highlighted = database.user[self.user].master.events
+            highlights = []
+            highlights.extend(chan.highlights)
+            highlights.extend(database.user[self.user].master.highlights)
+            for highlight in highlights:
+                if highlight.lower() in msg.lower():
+                    addToEvents = True
+                    eType = "HIGHLIGHT"
+            if self.nickname.lower() in msg.lower() \
+            or database.user[self.user].master.server[self.server].nick.lower()\
+            in msg.lower():
                 addToEvents = True
                 eType = "HIGHLIGHT"
-        if self.nickname.lower() in msg.lower() \
-        or database.user[self.user].master.server[self.server].nick.lower() in \
-        msg.lower():
-            addToEvents = True
-            eType = "HIGHLIGHT"
             
         chan.messages.append(message)
         
