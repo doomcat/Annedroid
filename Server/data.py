@@ -67,6 +67,7 @@ class Channel(object):
         self.highlights = set()
         self.ignore = set()
         self.blocked = set()
+        self.users = set()
         self.messages = []
         self.buffer = []
         self.topic = None

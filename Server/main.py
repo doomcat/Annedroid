@@ -20,6 +20,19 @@ database = None
 log = Logger()
 connections = {}
 
+def add_user_to_channel(dbuser,server,channel,user):
+    try:
+        database.user[dbuser].server[server].channels[channel].users.add(user)
+    except:
+        pass
+
+def remove_user_from_channel(dbuser,server,channel,user):
+    try:
+        database.user[dbuser].server[server].channels[channel]\
+        .users.remove(user)
+    except:
+        pass
+
 def to_json(object):
     #return json.dumps(object.__dict__)
     return str(jsonpickle.encode(object))
@@ -320,12 +333,22 @@ class Channel(Page):
             return database.user[a['user']].master.server[a['server']]\
             .channels[a['channel']].ignore
 
+    class Users(ConfigureList):
+        def get_list(self, request):
+            a = request.a
+            return database.user[a['user']].master.server[a['server']]\
+            .channels[a['channel']].users
+
+        def set_list(self, request):
+            pass
+
     def __init__(self):
         Page.__init__(self)
         self.putChild('new', self.New())
         self.putChild('highlights', self.Highlights())
         self.putChild('blocked', self.Blocked())
         self.putChild('ignore', self.Ignore())
+        self.putChild('users', self.Users())
 
 class Events(KeepAlive):
     def message_provider(self, request):
@@ -391,6 +414,7 @@ class IRCConnection(irc.IRCClient):
         database.user[self.user].master.events.append(
             data.Event(self.server, channel, self.nickname, None, "CHANNEL_JOINED")
         )
+        add_user_to_channel(self.user, self.server, channel, self.nickname)
         log.l("Joined %s" % (channel,))
     
     def join(self, channel):
@@ -417,6 +441,8 @@ class IRCConnection(irc.IRCClient):
             
         chan = database.user[self.user].master.server[self.server]\
         .channels[c]
+        
+        chan.users.add(user)
         
         ignore = database.user[self.user].master.ignore
         ignore = ignore.union(database.user[self.user].master\
@@ -470,38 +496,46 @@ class IRCConnection(irc.IRCClient):
         database.user[self.user].master.server[self.server].channels[channel]\
         .messages.append(event)
         database.user[self.user].master.events.append(event)
+        add_user_to_channel(self.user, self.server, channel, user)
 
     def userRenamed(self, user, oldName, newName):
         event = data.Event(self.server, None, oldName, newName, "NAME_CHANGED")
         database.user[self.user].master.events.append(event)
+        remove_user_from_channel(self.user, self.server, channel, oldName)
+        add_user_to_channel(self.user, self.server, channel, newName)
 
     def userJoined(self, user, channel):
         event = data.Event(self.server, channel, user, None, "JOINED")
         database.user[self.user].master.server[self.server].channels[channel]\
         .messages.append(event)
         database.user[self.user].master.events.append(event)
+        add_user_to_channel(self.user, self.server, channel, user)
         
     def userLeft(self, user, channel):
         event = data.Event(self.server, channel, user, None, "LEFT")
         database.user[self.user].master.server[self.server].channels[channel]\
         .messages.append(event)
         database.user[self.user].master.events.append(event)
+        remove_user_from_channel(self.user, self.server, channel, user)
         
     def userQuit(self, user, quitMsg):
         event = data.Event(self.server, None, user, quitMsg, "QUIT")
         database.user[self.user].master.events.append(event)
+        remove_user_from_channel(self.user, self.server, channel, user)
         
     def userKicked(self, kickee, channel, kicker, message):
         event = data.Event(self.server, channel, kickee, kicker, "OTHER_KICKED")
         database.user[self.user].master.server[self.server].channels[channel]\
         .messages.append(event)
         database.user[self.user].master.events.append(event)
+        remove_user_from_channel(self.user, self.server, channel, user)
 
     def kickedFrom(self, channel, kicker, message):
         event = data.Event(self.server, channel, kicker, message, "SELF_KICKED")
         database.user[self.user].master.server[self.server].channels[channel]\
         .messages.append(event)
         database.user[self.user].master.events.append(event)
+        remove_user_from_channel(self.user, self.server, channel, self.nickname)
 
 class IRCFactory(protocol.ClientFactory):
     protocol = IRCConnection
