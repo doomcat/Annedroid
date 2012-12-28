@@ -29,7 +29,7 @@ def add_user_to_channel(dbuser,server,channel,user):
 def remove_user_from_channel(dbuser,server,channel,user):
     try:
         database.user[dbuser].server[server].channels[channel]\
-        .users.remove(user)
+        .users.discard(user)
     except:
         pass
 
